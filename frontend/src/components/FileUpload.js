@@ -6,6 +6,7 @@ const FileUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
+  const [progress, setProgress] = useState(0); // State for upload progress
 
   // Fonction pour gérer le changement du fichier
   const handleFileChange = (e) => {
@@ -21,8 +22,8 @@ const FileUpload = () => {
     }
 
     setUploading(true);
+    setProgress(0); // Reset progress on new upload
     const formData = new FormData();
-    // Change to 'csvFile' to match the backend field name
     formData.append('csvFile', file);  // 'csvFile' corresponds to the Multer field name
 
     try {
@@ -31,6 +32,11 @@ const FileUpload = () => {
           'Content-Type': 'multipart/form-data',
         },
         responseType: 'blob', // Important to download the file as a blob
+        onUploadProgress: (progressEvent) => {
+          // Update the progress state based on the uploaded percentage
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setProgress(percent);
+        }
       });
 
       // Vérifiez si la réponse contient des données
@@ -56,6 +62,12 @@ const FileUpload = () => {
       <button onClick={handleUpload} disabled={uploading}>
         {uploading ? 'Uploading...' : 'Upload'}
       </button>
+      {uploading && (
+        <div>
+          <progress value={progress} max="100" /> {/* Display progress bar */}
+          <p>{progress}%</p> {/* Display percentage */}
+        </div>
+      )}
       {error && <p>{error}</p>}
       {downloadUrl && (
         <a href={downloadUrl} download="files.zip">
@@ -67,3 +79,4 @@ const FileUpload = () => {
 };
 
 export default FileUpload;
+
