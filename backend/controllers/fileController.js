@@ -3,24 +3,25 @@ const multer = require('multer');
 const path = require('path');
 const { splitCsvAndCreateZip } = require('../utils/splitCsvAndCreateZip');
 
-// Configuration de multer pour gérer les uploads de fichiers
+// Multer configuration to handle file uploads
 const upload = multer({ dest: 'uploads/' });
 
 const uploadFile = async (req, res) => {
   try {
+    // Check if a file is uploaded
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Traiter le fichier CSV et obtenir le chemin du fichier ZIP
+    // Process the uploaded CSV file and get the path of the generated ZIP file
     const zipFilePath = await splitCsvAndCreateZip(req.file.path);
 
-    // Envoyer le fichier ZIP au client
+    // Send the ZIP file to the client
     res.download(zipFilePath, 'files.zip', (err) => {
       if (err) {
         console.error('Error sending file:', err);
       }
-      // Supprimer les fichiers après l'envoi
+      // Remove the uploaded and generated files after sending
       fs.unlinkSync(req.file.path);
       fs.unlinkSync(zipFilePath);
     });
@@ -31,3 +32,4 @@ const uploadFile = async (req, res) => {
 };
 
 module.exports = { uploadFile };
+

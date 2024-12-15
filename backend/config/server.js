@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const { splitCsvAndCreateZip } = require('./../utils/splitCsvAndCreateZip');  // Ensure the path is correct
 const path = require('path');
-const fs = require('fs');
 const cors = require('cors');  // Import the cors package
 
 const app = express();
@@ -40,8 +39,7 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       if (err) {
         return res.status(500).json({ message: 'Error downloading the file', error: err });
       }
-      // If you want to delete the ZIP file after sending it, you can do so:
-      // fs.unlinkSync(zipFilePath);
+
     });
   } catch (error) {
     console.error(error);

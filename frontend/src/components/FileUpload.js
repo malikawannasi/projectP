@@ -1,85 +1,74 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useCallback } from 'react';
+// Importing React and hooks (useState, useCallback) for state management and optimizations
+import FileInput from './FileInput'; 
+import ProgressBar from './ProgressBar'; 
+import { uploadFile } from '../services/api'; 
 
 const FileUpload = () => {
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [downloadUrl, setDownloadUrl] = useState('');
-  const [progress, setProgress] = useState(0); // State for upload progress
+  // Declaring state variables using useState hook
+  const [file, setFile] = useState(null); 
+  const [uploading, setUploading] = useState(false); 
+  const [error, setError] = useState(''); 
+  const [downloadUrl, setDownloadUrl] = useState(''); 
+  const [progress, setProgress] = useState(0); 
 
-  // Fonction pour gérer le changement du fichier
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-    setError(''); // Clear error when a new file is selected
-  };
+  // handleFileChange function is called when a file is selected
+  const handleFileChange = useCallback((e) => {
+    const selectedFile = e.target.files[0]; 
+    if (selectedFile) {
+      // Checking if the file size is greater than 500MB
+      if (selectedFile.size > 500 * 1024 * 1024) {
+        setError('File size exceeds the 500MB limit');
+        setFile(null); 
+        return;
+      }
+      setFile(selectedFile); // Setting the selected file to the state
+      setError(''); // Clearing any previous error
+    }
+  }, []); 
 
-  // Fonction pour gérer l'upload du fichier
+  // handleUpload function handles the actual file upload process
   const handleUpload = async () => {
     if (!file) {
-      setError('Please select a file');
+      setError('Please select a file'); 
       return;
     }
 
-    setUploading(true);
-    setProgress(0); // Reset progress on new upload
-    const formData = new FormData();
-    formData.append('csvFile', file);  // 'csvFile' corresponds to the Multer field name
+    setUploading(true); // Setting uploading state to true
+    setProgress(0); // Resetting progress before starting upload
 
-    try {
-      const response = await axios.post('http://localhost:5000/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        responseType: 'blob', // Important to download the file as a blob
-        onUploadProgress: (progressEvent) => {
-          // Update the progress state based on the uploaded percentage
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setProgress(percent);
-        }
-      });
+    // Calling the uploadFile function from the api service and passing the file
+    const { url, error, success } = await uploadFile(file, setProgress);
 
-      // Vérifiez si la réponse contient des données
-      if (response.data) {
-        // Créer une URL pour le fichier ZIP à télécharger
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        setDownloadUrl(url); // Mettre à jour l'URL de téléchargement
-      } else {
-        setError('No data received from server');
-      }
-    } catch (err) {
-      console.error(err);
-      if (err.response) {
-        // Backend error responses
-        setError(`Error: ${err.response.status} - ${err.response.data.message || 'An error occurred while uploading the file'}`);
-      } else if (err.request) {
-        // No response received from the server
-        setError('No response from server. Please check your internet connection or try again later.');
-      } else {
-        // General error
-        setError(`Error: ${err.message}`);
-      }
-    } finally {
-      setUploading(false);
+    if (success) {
+      setDownloadUrl(url);
+    } else {
+      setError(error); 
     }
+
+    setUploading(false); 
   };
 
   return (
     <div>
       <h1>Upload CSV File</h1>
-      <input type="file" onChange={handleFileChange} />
+      {/* Rendering the FileInput component and passing handleFileChange to it */}
+      <FileInput onFileChange={handleFileChange} />
+      
+      {/* Button for triggering the upload */}
       <button onClick={handleUpload} disabled={uploading}>
         {uploading ? 'Uploading...' : 'Upload'}
       </button>
-      {uploading && (
-        <div>
-          <progress value={progress} max="100" /> {/* Display progress bar */}
-          <p>{progress}%</p> {/* Display percentage */}
-        </div>
-      )}
-      {error && <p style={{ color: 'red' }}>{error}</p>} {/* Display error message */}
+
+      {/* Conditionally rendering the ProgressBar if uploading */}
+      {uploading && <ProgressBar progress={progress} />}
+
+      {/* Displaying error messages if any */}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      {/* Displaying the download link if the file is uploaded successfully */}
       {downloadUrl && (
-        <a href={downloadUrl} download="files.zip">
+        <a href={downloadUrl} download="file.zip">
           Download ZIP
         </a>
       )}

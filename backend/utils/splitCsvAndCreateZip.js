@@ -1,89 +1,95 @@
-const fs = require('fs');
-const path = require('path');
-const { parse } = require('csv-parse');  // Correct import syntax
-const archiver = require('archiver'); // Pour compresser en zip
+const fs = require('fs'); // Module for file system operations
+const path = require('path'); // Module for working with file and directory paths
+const { parse } = require('csv-parse'); // Correct import syntax for the CSV parser
+const archiver = require('archiver'); // Module for creating ZIP archives
 
-// Fonction pour diviser le CSV et créer un ZIP
-const splitCsvAndCreateZip = (filePath) => {
+// Create 'uploads' directory if it doesn't exist
+const ensureUploadsDirectoryExists = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
+
+// Parse CSV file into records (rows)
+const parseCsvFile = (filePath) => {
   return new Promise((resolve, reject) => {
-    // Créer le répertoire 'uploads' s'il n'existe pas
-    const uploadDir = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      try {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      } catch (err) {
-        return reject('Error creating directory');
-      }
-    }
-
-    // Lire le fichier CSV
     fs.readFile(filePath, 'utf8', (err, data) => {
       if (err) {
         return reject('Error reading file');
       }
 
-      // Parser le fichier CSV avec csv-parse
       parse(data, { columns: true, skip_empty_lines: true }, (parseErr, records) => {
         if (parseErr) {
-      
           return reject('Error parsing CSV');
         }
-
-        // Séparer les données par genre, avec gestion des majuscules/minuscules
-        const males = records.filter(row => row.gender && row.gender.toLowerCase() === 'male');
-        const females = records.filter(row => row.gender && row.gender.toLowerCase() === 'female');
-
-        // Créer les fichiers CSV pour chaque genre
-        const maleCsv = path.join(uploadDir, 'male.csv');
-        const femaleCsv = path.join(uploadDir, 'female.csv');
-
-        // Fonction pour écrire un tableau d'objets dans un fichier CSV
-        const writeCsvFile = (filePath, data) => {
-          if (data.length === 0) {
-            return;
-          }
-
-          // Ajouter l'en-tête (les clés de l'objet)
-          const headers = Object.keys(data[0]);
-          const csvData = [
-            headers.join(','), // En-têtes
-            ...data.map(row => headers.map(header => row[header]).join(',')) // Données
-          ].join('\n');
-
-          try {
-            fs.writeFileSync(filePath, csvData, 'utf8');
-          } catch (err) {
-            return reject('Error writing CSV file');
-          }
-        };
-
-        // Écrire les fichiers CSV
-        writeCsvFile(maleCsv, males);
-        writeCsvFile(femaleCsv, females);
-
-        // Créer un fichier ZIP
-        const zipPath = path.join(uploadDir, 'files.zip');
-        const output = fs.createWriteStream(zipPath);
-        const archive = archiver('zip', { zlib: { level: 9 } });
-
-        output.on('close', () => {
-          resolve(zipPath);  // Retourner le chemin du fichier zip
-        });
-
-        archive.on('error', err => {
-          reject(err);
-        });
-
-        archive.pipe(output);
-        archive.file(maleCsv, { name: 'male.csv' });
-        archive.file(femaleCsv, { name: 'female.csv' });
-        archive.finalize();
+        resolve(records);
       });
     });
   });
 };
 
+// Filter records by gender (case insensitive)
+const filterByGender = (records, gender) => {
+  return records.filter(row => row.gender && row.gender.toLowerCase() === gender.toLowerCase());
+};
+
+// Write array of objects to CSV file
+const writeCsvFile = (filePath, data) => {
+  if (data.length === 0) return;
+
+  const headers = Object.keys(data[0]);
+  const csvData = [
+    headers.join(','),
+    ...data.map(row => headers.map(header => row[header]).join(','))
+  ].join('\n');
+
+  fs.writeFileSync(filePath, csvData, 'utf8');
+};
+
+// Create a ZIP file containing the given CSV files
+const createZipArchive = (zipPath, files) => {
+  return new Promise((resolve, reject) => {
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => resolve(zipPath));
+    archive.on('error', (err) => reject(err));
+
+    archive.pipe(output);
+    files.forEach(file => archive.file(file.path, { name: file.name }));
+    archive.finalize();
+  });
+};
+
+// Main function to split CSV by gender and create a ZIP file
+const splitCsvAndCreateZip = (filePath) => {
+  return new Promise(async (resolve, reject) => {
+    const uploadDir = path.join(__dirname, 'uploads');
+    ensureUploadsDirectoryExists(uploadDir);
+
+    try {
+      const records = await parseCsvFile(filePath);
+
+      const males = filterByGender(records, 'male');
+      const females = filterByGender(records, 'female');
+
+      const maleCsv = path.join(uploadDir, 'male.csv');
+      const femaleCsv = path.join(uploadDir, 'female.csv');
+
+      writeCsvFile(maleCsv, males);
+      writeCsvFile(femaleCsv, females);
+
+      const zipPath = path.join(uploadDir, 'files.zip');
+      await createZipArchive(zipPath, [
+        { path: maleCsv, name: 'male.csv' },
+        { path: femaleCsv, name: 'female.csv' }
+      ]);
+
+      resolve(zipPath);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
 module.exports = { splitCsvAndCreateZip };
-
-
-
