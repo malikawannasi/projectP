@@ -1,18 +1,26 @@
 const express = require('express');
 const multer = require('multer');
-const { splitCsvAndCreateZip } = require('./../utils/splitCsvAndCreateZip');  // Ensure the path is correct
+const { splitCsvAndCreateZip } = require('./../utils/splitCsvAndCreateZip');
 const path = require('path');
-const cors = require('cors');  // Import the cors package
+const cors = require('cors');
+const fs = require('fs'); // Import the fs module
 
 const app = express();
 
 // Enable CORS for all origins (you can modify this to limit it to specific domains if needed)
-app.use(cors());  // This will enable CORS for all incoming requests
+app.use(cors());
 
 // Configuration of file storage using multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, './uploads'); // Destination directory for uploaded files
+    const uploadDir = './uploads';
+
+    // Check if the 'uploads' directory exists, if not, create it
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });  // Create the directory and any necessary parent directories
+    }
+
+    cb(null, uploadDir); // Destination directory for uploaded files
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname)); // Filename with a unique timestamp
@@ -39,7 +47,6 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       if (err) {
         return res.status(500).json({ message: 'Error downloading the file', error: err });
       }
-
     });
   } catch (error) {
     console.error(error);

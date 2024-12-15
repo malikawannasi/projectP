@@ -1,5 +1,4 @@
 node_modules/
-uploads/*
-!uploads/
+uploads/
 *.zip
 .env
