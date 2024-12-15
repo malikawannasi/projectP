@@ -83,7 +83,7 @@ Both the front-end and back-end have basic error handling for common issues such
 
 This project is licensed under the MIT License.
 
-```
+
 ![alt text](image-1.png)
 
 ![alt text](image.png)
