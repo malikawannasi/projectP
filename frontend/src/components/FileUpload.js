@@ -11,7 +11,7 @@ const FileUpload = () => {
   // Fonction pour gérer le changement du fichier
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
-    setError('');
+    setError(''); // Clear error when a new file is selected
   };
 
   // Fonction pour gérer l'upload du fichier
@@ -49,7 +49,16 @@ const FileUpload = () => {
       }
     } catch (err) {
       console.error(err);
-      setError('Error uploading file');
+      if (err.response) {
+        // Backend error responses
+        setError(`Error: ${err.response.status} - ${err.response.data.message || 'An error occurred while uploading the file'}`);
+      } else if (err.request) {
+        // No response received from the server
+        setError('No response from server. Please check your internet connection or try again later.');
+      } else {
+        // General error
+        setError(`Error: ${err.message}`);
+      }
     } finally {
       setUploading(false);
     }
@@ -68,7 +77,7 @@ const FileUpload = () => {
           <p>{progress}%</p> {/* Display percentage */}
         </div>
       )}
-      {error && <p>{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>} {/* Display error message */}
       {downloadUrl && (
         <a href={downloadUrl} download="files.zip">
           Download ZIP
@@ -79,4 +88,5 @@ const FileUpload = () => {
 };
 
 export default FileUpload;
+
 
