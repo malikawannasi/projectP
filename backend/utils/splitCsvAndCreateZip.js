@@ -9,20 +9,29 @@ const splitCsvAndCreateZip = (filePath) => {
     // Créer le répertoire 'uploads' s'il n'existe pas
     const uploadDir = path.join(__dirname, 'uploads');
     if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+      try {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      } catch (err) {
+        return reject('Error creating directory');
+      }
     }
 
     // Lire le fichier CSV
     fs.readFile(filePath, 'utf8', (err, data) => {
-      if (err) return reject('Error reading file');
+      if (err) {
+        return reject('Error reading file');
+      }
 
       // Parser le fichier CSV avec csv-parse
       parse(data, { columns: true, skip_empty_lines: true }, (parseErr, records) => {
-        if (parseErr) return reject('Error parsing CSV');
+        if (parseErr) {
+      
+          return reject('Error parsing CSV');
+        }
 
-        // Séparer les données par genre
-        const males = records.filter(row => row.gender === 'Male');
-        const females = records.filter(row => row.gender === 'Female');
+        // Séparer les données par genre, avec gestion des majuscules/minuscules
+        const males = records.filter(row => row.gender && row.gender.toLowerCase() === 'male');
+        const females = records.filter(row => row.gender && row.gender.toLowerCase() === 'female');
 
         // Créer les fichiers CSV pour chaque genre
         const maleCsv = path.join(uploadDir, 'male.csv');
@@ -30,10 +39,25 @@ const splitCsvAndCreateZip = (filePath) => {
 
         // Fonction pour écrire un tableau d'objets dans un fichier CSV
         const writeCsvFile = (filePath, data) => {
-          const csvData = data.map(row => Object.values(row).join(',')).join('\n');
-          fs.writeFileSync(filePath, csvData);
+          if (data.length === 0) {
+            return;
+          }
+
+          // Ajouter l'en-tête (les clés de l'objet)
+          const headers = Object.keys(data[0]);
+          const csvData = [
+            headers.join(','), // En-têtes
+            ...data.map(row => headers.map(header => row[header]).join(',')) // Données
+          ].join('\n');
+
+          try {
+            fs.writeFileSync(filePath, csvData, 'utf8');
+          } catch (err) {
+            return reject('Error writing CSV file');
+          }
         };
 
+        // Écrire les fichiers CSV
         writeCsvFile(maleCsv, males);
         writeCsvFile(femaleCsv, females);
 
