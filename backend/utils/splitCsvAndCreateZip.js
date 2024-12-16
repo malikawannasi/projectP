@@ -10,6 +10,18 @@ const ensureUploadsDirectoryExists = (dirPath) => {
   }
 };
 
+// Delete previous files if they exist
+const deletePreviousFiles = (dirPath) => {
+  const maleCsv = path.join(dirPath, 'male.csv');
+  const femaleCsv = path.join(dirPath, 'female.csv');
+  if (fs.existsSync(maleCsv)) {
+    fs.unlinkSync(maleCsv);
+  }
+  if (fs.existsSync(femaleCsv)) {
+    fs.unlinkSync(femaleCsv);
+  }
+};
+
 // Parse CSV file into records (rows)
 const parseCsvFile = (filePath) => {
   return new Promise((resolve, reject) => {
@@ -66,6 +78,9 @@ const splitCsvAndCreateZip = async (filePath) => {
   const uploadDir = path.join(__dirname, 'uploads');
   ensureUploadsDirectoryExists(uploadDir);
 
+  // Delete previous files if they exist
+  deletePreviousFiles(uploadDir);
+
   try {
     const records = await parseCsvFile(filePath);
 
@@ -94,3 +109,4 @@ const splitCsvAndCreateZip = async (filePath) => {
 };
 
 module.exports = { splitCsvAndCreateZip };
+
