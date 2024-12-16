@@ -1,81 +1,104 @@
 import React, { useState, useCallback } from 'react';
-// Importing React and hooks (useState, useCallback) for state management and optimizations
-import FileInput from './FileInput'; 
-import ProgressBar from './ProgressBar'; 
-import { uploadFile } from '../services/api'; 
+import FileInput from './FileInput';
+import ProgressBar from './ProgressBar';
+import { uploadFile, downloadFileByPath } from '../services/api'; // Import downloadFileByPath
 
 const FileUpload = () => {
-  // Declaring state variables using useState hook
-  const [file, setFile] = useState(null); 
-  const [uploading, setUploading] = useState(false); 
-  const [error, setError] = useState(''); 
-  const [downloadUrl, setDownloadUrl] = useState(''); 
-  const [progress, setProgress] = useState(0); 
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false); // State for download progress
+  const [error, setError] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [downloadProgress, setDownloadProgress] = useState(0); // State to track download progress
+  const [downloadUrl, setDownloadUrl] = useState('');
+  const [filePath, setFilePath] = useState(''); // State to store the file path for downloading
 
-  // handleFileChange function is called when a file is selected
+  // File selection handler
   const handleFileChange = useCallback((e) => {
-    const selectedFile = e.target.files[0]; 
+    const selectedFile = e.target.files[0];
     if (selectedFile) {
-      // Checking if the file size is greater than 500MB
+      // Check if the file size exceeds 500MB
       if (selectedFile.size > 500 * 1024 * 1024) {
         setError('File size exceeds the 500MB limit');
-        setFile(null); 
+        setFile(null);
         return;
       }
-      setFile(selectedFile); // Setting the selected file to the state
-      setError(''); // Clearing any previous error
+      setFile(selectedFile);
+      setError('');
     }
-  }, []); 
+  }, []);
 
-  // handleUpload function handles the actual file upload process
+  // Upload file function
   const handleUpload = async () => {
     if (!file) {
-      setError('Please select a file'); 
+      setError('Please select a file');
       return;
     }
 
-    setUploading(true); // Setting uploading state to true
-    setProgress(0); // Resetting progress before starting upload
+    setUploading(true);
+    setProgress(0);
 
-    // Calling the uploadFile function from the api service and passing the file
-    const { url, error, success } = await uploadFile(file, setProgress);
+    const { filePath, success, error } = await uploadFile(file, setProgress); // Use filePath returned from API
 
     if (success) {
-      setDownloadUrl(url);
+      setDownloadUrl(filePath); // Set filePath for downloading
+      setFilePath(filePath); // Store filePath for later download
+      setError('');
     } else {
-      setError(error); 
+      setError(error);
     }
 
-    setUploading(false); 
+    setUploading(false);
+  };
+
+  // Function to download the ZIP file with progress tracking
+  const handleDownloadZip = async () => {
+    if (!filePath) {
+      setError('No file available for download');
+      return;
+    }
+
+    setDownloading(true);
+    setDownloadProgress(0);
+
+    try {
+      const { success, error } = await downloadFileByPath(filePath, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      if (!success) {
+        setError(error);
+      }
+    } catch (err) {
+      setError('Error downloading file');
+    }
+
+    setDownloading(false);
   };
 
   return (
     <div>
       <h1>Upload CSV File</h1>
-      {/* Rendering the FileInput component and passing handleFileChange to it */}
       <FileInput onFileChange={handleFileChange} />
-      
-      {/* Button for triggering the upload */}
       <button onClick={handleUpload} disabled={uploading}>
         {uploading ? 'Uploading...' : 'Upload'}
       </button>
 
-      {/* Conditionally rendering the ProgressBar if uploading */}
       {uploading && <ProgressBar progress={progress} />}
-
-      {/* Displaying error messages if any */}
+      {downloading && <ProgressBar progress={downloadProgress} />} {/* Show download progress */}
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      {/* Displaying the download link if the file is uploaded successfully */}
+      {/* Button to download the ZIP */}
       {downloadUrl && (
-        <a href={downloadUrl} download="file.zip">
-          Download ZIP
-        </a>
+        <div>
+          <p>File uploaded successfully!</p>
+          <button onClick={handleDownloadZip}>
+            {filePath ? 'Download ZIP' : 'Download ZIP'}
+          </button>
+        </div>
       )}
     </div>
   );
 };
 
 export default FileUpload;
-
-
