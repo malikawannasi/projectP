@@ -1,9 +1,7 @@
 const express = require('express');
-const { createZip } = require('../controllers/getController');
-
 const router = express.Router();
+const { generateZip } = require('../controllers/zipController');
 
-// Route for generating the ZIP file from the uploaded CSV
-router.get('/', createZip);
+router.get('/zip', generateZip);
 
 module.exports = router;

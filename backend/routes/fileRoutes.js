@@ -1,10 +1,7 @@
-// backend/routes/fileRoutes.js
 const express = require('express');
-const { uploadFile } = require('../controllers/fileController');
 const router = express.Router();
+const { upload, uploadFile } = require('../controllers/fileController');
 
-router.post('/', uploadFile); // Route pour uploader le fichier
+router.post('/upload', upload.single('csvFile'), uploadFile);
 
 module.exports = router;
-
-
