@@ -78,6 +78,7 @@ Both the front-end and back-end have basic error handling for common issues such
 - Incorrect file format
 - Upload interruptions
 - Processing errors
+- If the `data.csv` file does not contain any rows with the genders "male" and "female", the code creates an empty ZIP file with no CSV files inside.
 
 ## License
 
