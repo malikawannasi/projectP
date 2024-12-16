@@ -33,8 +33,8 @@ const filterByGender = (records, gender) => {
   return records.filter(row => row.gender && row.gender.toLowerCase() === gender.toLowerCase());
 };
 
-// Write array of objects to CSV file
-const writeCsvFile = (filePath, data) => {
+// Write array of objects to CSV file (async version)
+const writeCsvFile = async (filePath, data) => {
   if (data.length === 0) return;
 
   const headers = Object.keys(data[0]);
@@ -43,14 +43,14 @@ const writeCsvFile = (filePath, data) => {
     ...data.map(row => headers.map(header => row[header]).join(','))
   ].join('\n');
 
-  fs.writeFileSync(filePath, csvData, 'utf8');
+  await fs.promises.writeFile(filePath, csvData, 'utf8');
 };
 
 // Create a ZIP file containing the given CSV files
 const createZipArchive = (zipPath, files) => {
   return new Promise((resolve, reject) => {
     const output = fs.createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = archiver('zip', { zlib: { level: 1 } }); // Lower compression level for faster speed
 
     output.on('close', () => resolve(zipPath));
     archive.on('error', (err) => reject(err));
@@ -62,34 +62,35 @@ const createZipArchive = (zipPath, files) => {
 };
 
 // Main function to split CSV by gender and create a ZIP file
-const splitCsvAndCreateZip = (filePath) => {
-  return new Promise(async (resolve, reject) => {
-    const uploadDir = path.join(__dirname, 'uploads');
-    ensureUploadsDirectoryExists(uploadDir);
+const splitCsvAndCreateZip = async (filePath) => {
+  const uploadDir = path.join(__dirname, 'uploads');
+  ensureUploadsDirectoryExists(uploadDir);
 
-    try {
-      const records = await parseCsvFile(filePath);
+  try {
+    const records = await parseCsvFile(filePath);
 
-      const males = filterByGender(records, 'male');
-      const females = filterByGender(records, 'female');
+    const males = filterByGender(records, 'male');
+    const females = filterByGender(records, 'female');
 
-      const maleCsv = path.join(uploadDir, 'male.csv');
-      const femaleCsv = path.join(uploadDir, 'female.csv');
+    const maleCsv = path.join(uploadDir, 'male.csv');
+    const femaleCsv = path.join(uploadDir, 'female.csv');
 
-      writeCsvFile(maleCsv, males);
-      writeCsvFile(femaleCsv, females);
+    // Execute CSV writing operations in parallel
+    await Promise.all([
+      writeCsvFile(maleCsv, males),
+      writeCsvFile(femaleCsv, females)
+    ]);
 
-      const zipPath = path.join(uploadDir, 'files.zip');
-      await createZipArchive(zipPath, [
-        { path: maleCsv, name: 'male.csv' },
-        { path: femaleCsv, name: 'female.csv' }
-      ]);
+    const zipPath = path.join(uploadDir, 'files.zip');
+    await createZipArchive(zipPath, [
+      { path: maleCsv, name: 'male.csv' },
+      { path: femaleCsv, name: 'female.csv' }
+    ]);
 
-      resolve(zipPath);
-    } catch (err) {
-      reject(err);
-    }
-  });
+    return zipPath;
+  } catch (err) {
+    throw err;
+  }
 };
 
 module.exports = { splitCsvAndCreateZip };
