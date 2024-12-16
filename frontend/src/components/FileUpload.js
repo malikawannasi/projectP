@@ -1,34 +1,46 @@
 import React, { useState, useCallback } from 'react';
 import FileInput from './FileInput';
 import ProgressBar from './ProgressBar';
-import { uploadFile, downloadFileByPath } from '../services/api'; // Import downloadFileByPath
+import { uploadFile, downloadFileByPath } from '../services/api';
 
 const FileUpload = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [downloading, setDownloading] = useState(false); // State for download progress
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState(0);
-  const [downloadProgress, setDownloadProgress] = useState(0); // State to track download progress
+  const [progress, setProgress] = useState(0); // Progress for upload
+  const [downloadProgress, setDownloadProgress] = useState(0); // Progress for download
   const [downloadUrl, setDownloadUrl] = useState('');
-  const [filePath, setFilePath] = useState(''); // State to store the file path for downloading
+  const [filePath, setFilePath] = useState('');
 
-  // File selection handler
+  // Handle file change with extension and size validation
   const handleFileChange = useCallback((e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      // Check if the file size exceeds 500MB
-      if (selectedFile.size > 500 * 1024 * 1024) {
-        setError('File size exceeds the 500MB limit');
+      // Liste des extensions autorisées (uniquement CSV)
+      const allowedExtensions = ['csv'];
+      const fileExtension = selectedFile.name.split('.').pop().toLowerCase();
+
+      // Vérification de l'extension du fichier
+      if (!allowedExtensions.includes(fileExtension)) {
+        setError('Please upload a CSV file only (PDF, Word, and image files are not allowed)');
         setFile(null);
         return;
       }
+
+      // Vérification de la taille du fichier (max 500MB)
+      if (selectedFile.size > 500 * 1024 * 1024) {
+        setError('The file size exceeds the 500MB limit. Please upload a smaller CSV file.');
+        setFile(null);
+        return;
+      }
+
       setFile(selectedFile);
       setError('');
     }
   }, []);
 
-  // Upload file function
+  // Handle file upload with progress tracking
   const handleUpload = async () => {
     if (!file) {
       setError('Please select a file');
@@ -38,11 +50,11 @@ const FileUpload = () => {
     setUploading(true);
     setProgress(0);
 
-    const { filePath, success, error } = await uploadFile(file, setProgress); // Use filePath returned from API
+    const { filePath, success, error } = await uploadFile(file, setProgress);
 
     if (success) {
-      setDownloadUrl(filePath); // Set filePath for downloading
-      setFilePath(filePath); // Store filePath for later download
+      setDownloadUrl(filePath);
+      setFilePath(filePath);
       setError('');
     } else {
       setError(error);
@@ -51,7 +63,7 @@ const FileUpload = () => {
     setUploading(false);
   };
 
-  // Function to download the ZIP file with progress tracking
+  // Handle downloading the file with progress tracking
   const handleDownloadZip = async () => {
     if (!filePath) {
       setError('No file available for download');
@@ -84,11 +96,15 @@ const FileUpload = () => {
         {uploading ? 'Uploading...' : 'Upload'}
       </button>
 
-      {uploading && <ProgressBar progress={progress} />}
-      {downloading && <ProgressBar progress={downloadProgress} />} {/* Show download progress */}
+      {uploading && <ProgressBar progress={progress} color="blue" />}
+      {downloading && (
+        <div>
+          <ProgressBar progress={downloadProgress} color="green" />
+          <p>Please wait, the ZIP is downloading...</p> {/* Message when downloading ZIP */}
+        </div>
+      )}
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      {/* Button to download the ZIP */}
       {downloadUrl && (
         <div>
           <p>File uploaded successfully!</p>
